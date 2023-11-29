@@ -83,7 +83,7 @@ namespace Mathlab {
 			Promoted<_T> t = exp(x / 2.0L);
 			return t * t;
 		} else if (isnan(x)) return nan(errno = EDOM);
-		CommonType<long double, _T> result = 1, y = 1, n = 0;
+		Promoted<_T> result = 1, y = 1, n = 0;
 		while (y *= x / (n += 1)) result += y;
 		return result;
 	}
@@ -99,7 +99,7 @@ namespace Mathlab {
 		else if (x == 0) return -infinity();
 		else if (x < 0.5) return log(2.0l * x) - M_LN2;
 		else if (x > 1) return -log(1.0l / x);
-		CommonType<long double, _T> result = 0, y = 1, n = 0;
+		Promoted<_T> result = 0, y = 1, n = 0;
 		while (result - y - result) result -= (y *= 1 - x) / (n += 1);
 		return result;
 	}
@@ -135,16 +135,16 @@ namespace Mathlab {
 		if (signbit(x)) return x ? nan(errno = EDOM) : x;
 		else if (x >= 4) return sqrt(x / 4) * 2;
 		else if (x < 1) return sqrt(x * 4) / 2;
-		CommonType<long double, _T> a = 1;
-		while (CommonType<long double, _T> b = (a + x / a) / 2) if (a != b) a = b; else return b;
+		Promoted<_T> a = 1;
+		while (Promoted<_T> b = (a + x / a) / 2) if (a != b) a = b; else return b;
 	}
 	template <Arithmetic _T> inline constexpr Promoted<_T> cbrt(_T x) noexcept {
 		if (!x || !isfinite(x)) return x;
 		else if (x < 0) return -cbrt(-x);
 		else if (x >= 8) return cbrt(x / 8) * 2;
 		else if (x < 1) return cbrt(x * 8) / 2;
-		CommonType<long double, _T> a = 1;
-		while (CommonType<long double, _T> b = (2 * a + x / a / a) / 3) if (a != b) a = b; else return b;
+		Promoted<_T> a = 1;
+		while (Promoted<_T> b = (2 * a + x / a / a) / 3) if (a != b) a = b; else return b;
 	}
 	template <Arithmetic... _T> inline constexpr Promoted<_T...> hypot(_T... t) noexcept {
 		if (!(t && ...)) return 0;
@@ -159,7 +159,7 @@ namespace Mathlab {
 		if (x < 0) return -sin(-x);
 		else if (x == 0) return x;
 		else if (x >= M_PI) return -sin(x - M_PI);
-		CommonType<long double, _T> result = x, y = x, n = 2;
+		Promoted<_T> result = x, y = x, n = 2;
 		while (y *= -x * x / (n * n + n)) result += y, n += 2;
 		return result;
 	}
@@ -167,7 +167,7 @@ namespace Mathlab {
 		if (x < 0) return cos(-x);
 		else if (x == 0) return 1;
 		else if (x >= M_PI) return -cos(x - M_PI);
-		CommonType<long double, _T> result = 1, y = 1, n = 2;
+		Promoted<_T> result = 1, y = 1, n = 2;
 		while (y *= -x * x / (n * n - n)) result += y, n += 2;
 		return result;
 	}
@@ -189,7 +189,7 @@ namespace Mathlab {
 		else if (x == 0) return x;
 		else if (x > 1) return nan(errno = EDOM);
 		else if (x == 1) return M_PI / 2;
-		CommonType<long double, _T> result = x, y = x, n = 1, z = x * x;
+		Promoted<_T> result = x, y = x, n = 1, z = x * x;
 		while (result + y - result) result += (y *= n / (n + 1) * z) / (n += 2);
 		return result;
 	}
@@ -223,7 +223,7 @@ namespace Mathlab {
 		return (exp(x) + exp(-x)) / 2;
 	}
 	template <Arithmetic _T> inline constexpr Promoted<_T> tanh(_T x) noexcept {
-		CommonType<long double, _T> a = sinh<CommonType<long double, _T>>(x), b = cosh<CommonType<long double, _T>>(-x);
+		Promoted<_T> a = sinh<Promoted<_T>>(x), b = cosh<Promoted<_T>>(-x);
 		return isinf(a) ? sign(a) : a / b;
 	}
 	template <Arithmetic _T> inline constexpr Promoted<_T> coth(_T x) noexcept {
@@ -255,17 +255,19 @@ namespace Mathlab {
 		return asinh(1.0L / x);
 	}
 	// 2.6 Linear interpolations
-	template <Arithmetic _T, Arithmetic _U> inline constexpr auto lerp(_T a, _U b, Promoted<_T, _U> t) noexcept -> decltype(a + b) {
+	template <Arithmetic _T, Arithmetic _U>
+	inline constexpr Plus<_T, _U> lerp(_T a, _U b, Promoted<_T, _U> t) noexcept {
 		return t == 0 || a == b ? a :
-			t == 1 ? b :
+			t == 1 ? b : // avoid overflowing or underflowing
 			1.0L * a * b <= 0 ? a * (1 - t) + b * t :
-			t > 1 ? b + (t - 1) * (b - a) : a + t * (b - a); // avoid overflowing or underflowing
+			t > 1 ? b + (t - 1) * (b - a) : a + t * (b - a);
 	}
-	template <class _T> inline constexpr auto lerp(_T* a, _T* b, CommonType<long double, _T> t) noexcept -> decltype(a + b) {
+	template <class _T> inline constexpr _T* lerp(_T* a, _T* b, Promoted<_T> t) noexcept {
 		return a + ptrdiff_t((b - a) * t);
 	}
 	// 2.6.1 Midpoint
-	template <Arithmetic _T, Arithmetic _U> inline constexpr auto midpoint(_T a, _U b) noexcept -> decltype(a + b) {
+	template <Arithmetic _T, Arithmetic _U>
+	inline constexpr Plus<_T, _U> midpoint(_T a, _U b) noexcept {
 		return isinf(a + b) ? (a + b) * 0.5l : a * 0.5l + b * 0.5l;
 	}
 	template <class _T> inline constexpr _T* midpoint(_T* a, _T* b) noexcept {
@@ -328,7 +330,7 @@ namespace Mathlab {
 		return log(z) / log(y);
 	}
 	template <Arithmetic _T, Arithmetic _U> inline constexpr Complex<_T> pow(Complex<_T> z, Complex<_U> y) noexcept {
-		return exp<CommonType<long double, _T>>(z * log<CommonType<long double, _T>>(y));
+		return exp<Promoted<_T>>(z * log<Promoted<_T>>(y));
 	}
 	template <Arithmetic _T> inline constexpr Complex<_T> sqrt(Complex<_T> z) noexcept {
 		return sqrt(z.real) * Complex<_T>{cos(z.imag / 2), sin(z.imag / 2)};
@@ -415,7 +417,7 @@ namespace Mathlab {
 		else if (x == 0) return x;
 		else if (x == x + 1) return 1;
 		else if (isnan(x)) return nan(errno = EDOM);
-		CommonType<long double, _T> result = x, y = x, n = 0;
+		Promoted<_T> result = x, y = x, n = 0;
 		while (result + y - result) result += (y *= -x * x / (n += 1)) / (2 * n - 1);
 		return result * M_2_SQRTPI; // 2 divided by sqrt(M_PI)
 	}
@@ -425,11 +427,11 @@ namespace Mathlab {
 	// 7.2 Gamma functions
 	template <Arithmetic _T> inline constexpr Promoted<_T> lgamma(_T x) noexcept {
 		if (isnan(x) || x == 0) return nan(errno = EDOM);
-		CommonType<long double, _T> result = 0, n = 1;
+		Promoted<_T> result = 0, n = 1;
 		while (x < 0) result -= log(-x), x += 1;
 		while (x > 2) result += log(x -= 1);
 		if (x == 1 || x == 2) return 0;
-		while (CommonType<long double, _T> y = x * log((n + 1) / (n + x))) result += y, n += 1;
+		while (Promoted<_T> y = x * log((n + 1) / (n + x))) result += y, n += 1;
 		return result;
 	}
 	template <Arithmetic _T> inline constexpr Promoted<_T> tgamma(_T x) noexcept {
@@ -442,8 +444,8 @@ namespace Mathlab {
 	// 7.3 Beta function
 	template <Arithmetic _T, Arithmetic _U> inline constexpr Promoted<_T, _U> beta(_T x, _U y) noexcept {
 		if (isnan(x) || isnan(y)) return nan(errno = EDOM);
-		CommonType<long double, _T> result = 1 / x + 1 / y, n = 0;
-		while (CommonType<long double, _T> z = (n += 1) / (n + x) * (n + x + y) / (n + y)) if (z != 1) result *= z;
+		Promoted<_T> result = 1 / x + 1 / y, n = 0;
+		while (Promoted<_T> z = (n += 1) / (n + x) * (n + x + y) / (n + y)) if (z != 1) result *= z;
 		return result;
 	}
 	// 7.4 Riemann zeta function
@@ -452,12 +454,12 @@ namespace Mathlab {
 		else if (x == 1) return infinity();
 		else if (x == 0) return -0.5;
 		else if (x > 1) {
-			CommonType<long double, _T> result = 1, n = 2;
-			while (CommonType<long double, _T> y = pow(n, -x)) if (result + y - result) result += y;
+			Promoted<_T> result = 1, n = 2;
+			while (Promoted<_T> y = pow(n, -x)) if (result + y - result) result += y;
 			return result;
 		} else if (x > 0) {
-			CommonType<long double, _T> result = -1, n = 2;
-			while (CommonType<long double, _T> y = (int(n) % 2 ? -1 : 1) * pow(n, -x)) if (result + y - result) result += y;
+			Promoted<_T> result = -1, n = 2;
+			while (Promoted<_T> y = (int(n) % 2 ? -1 : 1) * pow(n, -x)) if (result + y - result) result += y;
 			return result / (exp2(1 - x) - 1);
 		} else return 2 * pow(2 * M_PI, x - 1) * sin(M_PI / 2 * x) * tgamma(1 - x) * riemannZeta(1 - x);
 	}

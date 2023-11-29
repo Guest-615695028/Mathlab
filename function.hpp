@@ -16,7 +16,7 @@ namespace Mathlab {
 		};
 		template<typename _T, bool B = true>
 		struct vtable_funcs {
-			static constexpr _R invoke(uintptr_t& storage, _Args... args) _noexcept_as(_declval(_T)(args...)) {
+			static constexpr _R invoke(uintptr_t& storage, _Args... args) _NOEXCEPT_(_declval(_T)(args...)) {
 				return (B ? *reinterpret_cast<_T*>(storage) : reinterpret_cast<_T&>(storage))(args...);
 			}
 			static constexpr void copy(uintptr_t& dest, const uintptr_t& src) noexcept {
@@ -40,7 +40,8 @@ namespace Mathlab {
 			static constexpr bool reqAlloc = B;
 		};
 		template<typename _T> static constexpr vtable_t* vtable() {
-			vtable_funcs<_T, (alignof(_T) > alignof(uintptr_t) || sizeof(_T) > sizeof(uintptr_t) || !std::is_trivially_copyable_v<_T>) > v{};
+			vtable_funcs<_T, (alignof(_T) > alignof(uintptr_t) || sizeof(_T) > sizeof(uintptr_t) ||
+				!std::is_trivially_copyable_v<_T>) > v{};
 			static vtable_t vtable{v.invoke, v.copy, v.move, v.swap, v.destroy, v.type, v.reqAlloc};
 			return &vtable;
 		}

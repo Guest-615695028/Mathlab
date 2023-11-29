@@ -7,7 +7,7 @@ namespace Mathlab {
 	template <Arithmetic _T, size_t N> class Vector {
 		static_assert(N > 0 && NumericType<_T>);
 		_T _data[N];
-		public:
+	public:
 		typedef _T ValueType;
 		static constexpr size_t columns = N;
 		constexpr Vector() noexcept : _data{0} {}
@@ -15,6 +15,10 @@ namespace Mathlab {
 			for (_T& u : _data) u = t;
 		}; //Zero Vector
 		template <Arithmetic _S> constexpr Vector(const InitializerList<_S>& il) noexcept : _data{0} {
+			size_t a = 0;
+			for (_S s : il) _data[a++] = s;
+		}
+		template <Arithmetic _S> constexpr Vector(const _S(&il)[N]) noexcept : _data{0} {
 			size_t a = 0;
 			for (_S s : il) _data[a++] = s;
 		}

@@ -83,6 +83,9 @@ namespace std {
 			t.deallocate(n);
 		};
 		template <class _T> concept Pointer = is_pointer_v<_T>;
+		template <class _T> concept PointerToMember = is_member_pointer_v<_T>;
+		template <class _T> concept PointerToMemberObject = is_member_object_pointer_v<_T>;
+		template <class _T> concept PointerToMemberFunction = is_member_function_pointer_v<_T>;
 		template <class _T> concept LvalueReference = is_lvalue_reference_v<_T>;
 		template <class _T> concept RvalueReference = is_rvalue_reference_v<_T>;
 		template <class _T> concept Enum = is_enum_v<_T>;

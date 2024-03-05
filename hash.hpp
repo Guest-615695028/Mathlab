@@ -1,6 +1,8 @@
 #pragma once
 #include <assert.h>
 #include "basics.hpp"
+#ifndef _MATHLAB_HASH_
+#define _MATHLAB_HASH_ 1
 namespace Mathlab {
 	template <Integral I> constexpr unsigned int BitWidth(const I& i) noexcept {
 		return I(-1) < I(0) && i == 1 ? 2 : i ? BitWidth(i / 2) + 1 : 0;
@@ -51,3 +53,4 @@ namespace Mathlab {
 		}
 	};
 }
+#endif

@@ -1,8 +1,8 @@
 #pragma once
 #ifndef _MATHLAB_VECTOR_
 #define _MATHLAB_VECTOR_
-#include "math.hpp"
 #include <initializer_list>
+#include "math.hpp"
 namespace Mathlab {
 	template <Arithmetic _T, size_t N> class Vector {
 		static_assert(N > 0 && NumericType<_T>);
@@ -10,14 +10,12 @@ namespace Mathlab {
 	public:
 		typedef _T ValueType;
 		static constexpr size_t columns = N;
-		constexpr Vector() noexcept : _data{0} {}
-		explicit constexpr Vector(_T t = 0) noexcept : _data{t} {
+		constexpr Vector() noexcept = default;
+		explicit constexpr Vector(const _T& t) noexcept : _data{t} {
 			for (_T& u : _data) u = t;
 		}; //Zero Vector
-		template <Arithmetic _S> constexpr Vector(const InitializerList<_S>& il) noexcept : _data{0} {
-			size_t a = 0;
-			for (_S s : il) _data[a++] = s;
-		}
+		template <ConvertibleTo<_T> ..._S> constexpr Vector(const _S& ...s) noexcept
+			: _data{_T(s)...} {}
 		template <Arithmetic _S> constexpr Vector(const _S(&il)[N]) noexcept : _data{0} {
 			size_t a = 0;
 			for (_S s : il) _data[a++] = s;
@@ -25,12 +23,10 @@ namespace Mathlab {
 		template <Arithmetic _S> constexpr Vector(const Vector<_S, N>& other) noexcept : _data{0} {
 			for (size_t i = 0; i < N; ++i) _data[i] = other[i];
 		}
-		template <Arithmetic _S, size_t M> explicit constexpr Vector(const Vector<_S, M>& other) noexcept requires(M < N) : _data{0} {
-			for (size_t i = 0; i < M; ++i) _data[i] = other[i];
-		}
-		template <Arithmetic _S> constexpr Vector& operator=(const Vector<_S, N>& other) noexcept {
-			for (size_t i = 0; i < N; ++i) _data[i] = other[i];
-			return *this;
+		template <Arithmetic _S, size_t M, ConvertibleTo<_T>... _U>
+		constexpr Vector(const Vector<_S, M>& other, const _U&... u) noexcept : _data{0} {
+			_T t[N - M] = {u...};
+			for (size_t i = 0; i < N; ++i) _data[i] = i < M ? other[i] : t[i - M];
 		}
 		constexpr _T* begin() noexcept { return _data; }
 		constexpr _T* end() noexcept { return _data + N; }
@@ -39,6 +35,9 @@ namespace Mathlab {
 		constexpr operator bool() noexcept {
 			for (size_t i = 0; i < N; ++i) if (_data[i]) return true;
 			return false;
+		}
+		constexpr operator _T() noexcept requires(N == 1) {
+			return _data[0];
 		}
 		constexpr _T& operator[](size_t a) noexcept {
 			return _data[a];

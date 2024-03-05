@@ -4,15 +4,15 @@
 #include "vector.hpp"
 #include <initializer_list>
 namespace Mathlab {
-	template <Arithmetic _T, size_t M, size_t N> class Matrix {
+	template <Arithmetic _T, size_t M, size_t N = M> class Matrix {
 		static_assert(M > 0 && N > 0 && NumericType<_T>);
-		_T _data[M][N];
+		Vector<_T, M> _data[N];
 		typedef struct { size_t a, b; } _index_t;
 	public:
 		typedef _T ValueType;
 		static constexpr size_t rows = M;
 		static constexpr size_t columns = N;
-		constexpr Matrix() noexcept : _data{0} {}; //Zero Matrix
+		constexpr Matrix() noexcept : _data{0} {} //Zero Matrix
 		template <Arithmetic _S> constexpr Matrix(const InitializerList<_S>& il) noexcept {
 			size_t a = 0;
 			for (_S s : il) _data[a / N][a % N] = s, ++a;
@@ -23,26 +23,15 @@ namespace Mathlab {
 			for (_S s : il) _data[a / N][a % N] = s, ++a;
 			while (a < M * N) _data[a / N][a % N] = 0, ++a;
 		}
-		template <Arithmetic _S> constexpr Matrix(const Matrix<_S, M, N>& other) noexcept {
+		template <Arithmetic _S = _T> constexpr Matrix(const Matrix<_S, M, N>& other) noexcept {
 			for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j)
-				_data[i][j] = other[{i, j}];
+				_data[i][j] = other[i][j];
 		}
 		template <Arithmetic _S, size_t P, size_t Q>
 		explicit constexpr Matrix(const Matrix<_S, P, Q>& other) noexcept
 			requires (P <= M && Q <= N) {
 			for (size_t i = 0; i < P; ++i) for (size_t j = 0; j < Q; ++j)
-				_data[i][j] = other[{i, j}];
-		}
-		template <Arithmetic _S> constexpr Matrix(const Vector<_S, M + N - 1>& other) noexcept
-			requires(M == 1 || N == 1) {
-			for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j)
-				_data[i][j] = other[i + j]; //Either i or j is 0
-		}
-		template <Arithmetic _S>
-		constexpr Matrix& operator=(const Matrix<_S, M, N>& other) noexcept {
-			for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j)
-				_data[i][j] = other[{i, j}];
-			return *this;
+				_data[i][j] = other[i][j];
 		}
 		constexpr _T* begin() noexcept { return *_data; }
 		constexpr _T* end() noexcept { return *_data + M * N; }
@@ -53,17 +42,15 @@ namespace Mathlab {
 				if (_data[i][j]) return true;
 			return false;
 		}
-		constexpr _T& operator[](size_t z) noexcept {
-			return _data[z / N][z % N];
+		constexpr _T& at(size_t z) noexcept {
+			_T t = 0;
+			return z >= M * N ? t : _data[z / N][z % N];
 		}
-		constexpr const _T& operator[](size_t z) const noexcept {
-			return _data[z / N][z % N];
+		constexpr Vector<_T, M>& operator[](size_t z) noexcept {
+			return _data[z];
 		}
-		constexpr _T& operator[](_index_t z) noexcept {
-			return _data[z.a][z.b];
-		}
-		constexpr const _T& operator[](_index_t z) const noexcept {
-			return _data[z.a][z.b];
+		constexpr const Vector<_T, M>& operator[](size_t z) const noexcept {
+			return _data[z];
 		}
 #ifdef __cpp_multidimensional_subscript
 		constexpr _T& operator[](size_t a, size_t b) noexcept {
@@ -104,19 +91,19 @@ namespace Mathlab {
 		constexpr Matrix<_T, M - 1, N - 1> subm(size_t x, size_t y) const noexcept {
 			Matrix<_T, M - 1, N - 1> m{0};
 			for (size_t i = 0; i < M - 1; ++i) for (size_t j = 0; j < N - 1; ++j)
-				m[{i, j}] = _data[i + (i >= x)][j + (j >= y)];
+				m[i][j] = _data[i + (i >= x)][j + (j >= y)];
 			return m;
 		}
 		constexpr Matrix<_T, M - 1, N> rsubm(size_t x) const noexcept {
 			Matrix<_T, M - 1, N> m{0};
 			for (size_t i = 0; i < M - 1; ++i) for (size_t j = 0; j < N; ++j)
-				m[{i, j}] = _data[i + (i >= x)][j];
+				m[i][j] = _data[i + (i >= x)][j];
 			return m;
 		}
 		constexpr Matrix<_T, M, N - 1> csubm(size_t y) const noexcept {
 			Matrix<_T, M, N - 1> m{0};
 			for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N - 1; ++j)
-				m[{i, j}] = _data[i][j + (j >= y)];
+				m[i][j] = _data[i][j + (j >= y)];
 			return m;
 		}
 		constexpr Vector<_T, N> row(size_t x) const noexcept {
@@ -199,30 +186,36 @@ namespace Mathlab {
 		operator*(const Matrix<_T, M, N>& lhs, const Matrix<_S, N, P>& rhs) noexcept {
 		Matrix<long double, M, P> m{0};
 		for (size_t i = 0; i < M; ++i) for (size_t k = 0; k < P; ++k) for (size_t j = 0; j < N; ++j)
-			m[{i, k}] += lhs[{i, j}] * rhs[{j, k}];
+			m[{i, k}] += lhs[i][j] * rhs[{j, k}];
 		return m;
 	}
 	template <class _T, class _S, size_t M, size_t N>
 	inline constexpr Vector<Multiplies<_T, _S>, M>
 		operator*(const Matrix<_T, M, N>& lhs, const Vector<_S, N>& rhs) noexcept {
 		Vector<long double, M> m{0};
-		for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j) m[i] += lhs[{i, j}] * rhs[j];
+		for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j) m[i] += lhs[i][j] * rhs[j];
 		return m;
 	}
 	template <class _T, class _S, size_t M, size_t N>
 	inline constexpr Vector<Multiplies<_T, _S>, N>
 		operator*(const Vector<_T, M> lhs, const Matrix<_S, M, N>& rhs) noexcept {
 		Vector<long double, N> m{0};
-		for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j) m[i] += lhs[i] * rhs[{i, j}];
+		for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j) m[i] += lhs[i] * rhs[i][j];
 		return m;
 	}
 	//2 "Literal" Matrices
 	template <class _T, size_t N>
-	constexpr Matrix<_T, N, N> exchangeMatrix = [] {
+	constexpr Matrix<_T, N, N> identityMatrix() {
+		Matrix<_T, N, N> m{0};
+		for (size_t i = 0; i < N; ++i) m[{i, i}] = 1;
+		return m;
+	}
+	template <class _T, size_t N>
+	constexpr Matrix<_T, N, N> exchangeMatrix() {
 		Matrix<_T, N, N> m{0};
 		for (size_t i = 0; i < N; ++i) m[{i, N - 1 - i}] = 1;
 		return m;
-	}();
+	};
 	template <class _T, size_t N>
 	inline constexpr Matrix<_T, N, N> primaryMatrix1(size_t a, size_t b) noexcept {
 		Matrix<_T, N, N> m = identityMatrix<_T, N>();
@@ -246,20 +239,20 @@ namespace Mathlab {
 	inline constexpr Matrix<_T, N, N> redhefferMatrix() noexcept {
 		Matrix<_T, N, N> m{1};
 		for (size_t i = 1; i < N; ++i) for (size_t j = 0; j <= i; ++j)
-			m[{i, j}] = !(j && (j + 1) % (i + 1));
+			m[i][j] = !(j && (j + 1) % (i + 1));
 		return m;
 	}
 	//3 Matrix operations
 	template <class _T, size_t M, size_t N>
 	inline constexpr Matrix<_T, N, M> transpose(const Matrix<_T, M, N>& m) noexcept {
 		Matrix<_T, N, M> n{0};
-		for (size_t i = 1; i <= M; ++i) for (size_t j = 1; j <= N; ++j) n[{j, i}] = m[{i, j}];
+		for (size_t i = 1; i <= M; ++i) for (size_t j = 1; j <= N; ++j) n[{j, i}] = m[i][j];
 		return n;
 	}
 	template <class _T, size_t M, size_t N>
 	inline constexpr Matrix<_T, N, M> transjugate(const Matrix<_T, M, N>& m) noexcept {
 		Matrix<_T, N, M> n{0};
-		for (size_t i = 1; i <= M; ++i) for (size_t j = 1; j <= N; ++j) n[{j, i}] = conj(m[{i, j}]);
+		for (size_t i = 1; i <= M; ++i) for (size_t j = 1; j <= N; ++j) n[{j, i}] = conj(m[i][j]);
 		return n;
 	}
 	template <class _T, size_t N> constexpr _T det(const Matrix<_T, N, N>& m) noexcept {
@@ -341,25 +334,25 @@ namespace Mathlab {
 	template <class _T, size_t N>
 	inline constexpr bool isSymmetric(const Matrix<_T, N, N>& m) noexcept {
 		for (size_t i = 1; i <= N; ++i) for (size_t j = 1; j <= N; ++j)
-			if (m[{j, i}] != m[{i, j}]) return 0;
+			if (m[{j, i}] != m[i][j]) return 0;
 		return 1;
 	}
 	template <class _T, size_t N>
 	inline constexpr bool isSkewSymmetric(const Matrix<_T, N, N>& m) noexcept {
 		for (size_t i = 1; i <= N; ++i) for (size_t j = 1; j <= N; ++j)
-			if (m[{j, i}] != -m[{i, j}]) return 0;
+			if (m[{j, i}] != -m[i][j]) return 0;
 		return 1;
 	}
 	template <class _T, size_t N>
 	inline constexpr bool isHermitian(const Matrix<_T, N, N>& m) noexcept {
 		for (size_t i = 1; i <= N; ++i) for (size_t j = 1; j <= N; ++j)
-			if (m[{j, i}] != conj(m[{i, j}])) return 0;
+			if (m[{j, i}] != conj(m[i][j])) return 0;
 		return 1;
 	}
 	template <class _T, size_t N>
 	inline constexpr bool isSkewHermitian(const Matrix<_T, N, N>& m) noexcept {
 		for (size_t i = 1; i <= N; ++i) for (size_t j = 1; j <= N; ++j)
-			if (m[{j, i}] != -conj(m[{i, j}])) return 0;
+			if (m[{j, i}] != -conj(m[i][j])) return 0;
 		return 1;
 	}
 	template <class _T, size_t N>
@@ -376,7 +369,7 @@ namespace Mathlab {
 		for (size_t i = 1; i <= N; ++i) for (size_t j = 1; j <= N; ++j) {
 			_T t = 0;
 			for (size_t k = 1; k < N; ++k) t += m[{i, k}] * m[{k, j}];
-			if (m[{i, j}] != t) return 0;
+			if (m[i][j] != t) return 0;
 		}
 		return 1;
 	}
@@ -443,11 +436,12 @@ namespace Mathlab {
 		for (_T& t : m) t = v[i++];
 	}
 	//6 Linear Transformation
-	template <class _T> Matrix<_T, 4> transform(const Vector<_T, 3>& v) {
-		return {1, 0, 0, v[0], 0, 1, 0, v[1], 0, 0, 1, v[2], 0, 0, 0, 1};
+	template <class _T, size_t N> Matrix<_T, N + 1> transform(const Vector<_T, N>& v) {
+		Matrix<_T, N + 1> res = identityMatrix<_T, N + 1>();
+		res[N] = v;
 	}
 	template <class _T> Matrix<_T, 4> rotateQuaternion(const Vector<_T, 4>& v) {
-		return {v[0] + v[1] - v[2] - v[3], 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+		return 0; //{v[0] + v[1] - v[2] - v[3], 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 	}
 	template <class _T> Matrix<_T, 4> rotate(const Vector<_T, 3>& v, const _T& theta) {
 		auto vs = 1 - cos(theta), s = sin(theta);

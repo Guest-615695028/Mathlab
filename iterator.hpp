@@ -38,10 +38,15 @@ namespace Mathlab {
 		constexpr _T base() const noexcept { return _base; }
 		constexpr operator _T () const noexcept { return _base; }
 		constexpr _T operator->() const noexcept { return _base; }
-		constexpr auto& operator*() const noexcept { return *(_base); }
-		constexpr auto& operator[](size_t i) const noexcept { return (_base - i)[0]; }
+		constexpr auto& operator*() const noexcept { return *_base; }
+		constexpr auto& operator[](size_t i) const noexcept { return *(_base - i); }
 		constexpr auto operator<=>(const ReverseIterator& r) noexcept { return r._base <=> _base; }
 		constexpr bool operator==(const ReverseIterator& r) noexcept { return r._base == _base; }
+		constexpr bool operator!=(const ReverseIterator& r) noexcept { return r._base != _base; }
+		constexpr bool operator<(const ReverseIterator& r) noexcept { return r._base < _base; }
+		constexpr bool operator<=(const ReverseIterator& r) noexcept { return r._base <= _base; }
+		constexpr bool operator>(const ReverseIterator& r) noexcept { return r._base > _base; }
+		constexpr bool operator>=(const ReverseIterator& r) noexcept { return r._base >= _base; }
 	};
 	template <class _T> inline constexpr ReverseIterator<_T>
 	operator+(ptrdiff_t n, ReverseIterator<_T> i) { return i + n; }

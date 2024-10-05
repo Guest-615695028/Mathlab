@@ -16,7 +16,7 @@ namespace Mathlab {
 		};
 		template<typename _T, bool B = true>
 		struct vtable_funcs {
-			static constexpr _R invoke(uintptr_t& storage, _Args... args) _NOEXCEPT_(_declval(_T)(args...)) {
+			static constexpr _R invoke(uintptr_t& storage, _Args... args) _NOEXCEPT_AS_(_declval(_T)(args...)) {
 				return (B ? *reinterpret_cast<_T*>(storage) : reinterpret_cast<_T&>(storage))(args...);
 			}
 			static constexpr void copy(uintptr_t& dest, const uintptr_t& src) noexcept {

@@ -5,7 +5,7 @@
 #include "basics.hpp"
 namespace Mathlab {
 	template <LegacyIterator _I, Integral _N> inline constexpr _I advance(_I i, _N n)
-		_NOEXCEPT_(++i) {
+		_NOEXCEPT_AS_(++i) {
 		if constexpr (LegacyRandomAccessIterator<_I>) return i + n;
 		else if (n >= 0) while (n--) ++i;
 		else if constexpr (LegacyBidirectionalIterator<_I>) while (n++) --i;
@@ -13,7 +13,7 @@ namespace Mathlab {
 		return i;
 	}
 	template <LegacyIterator _I> inline constexpr ptrdiff_t distance(_I i, _I j)
-		_NOEXCEPT_(++i) {
+		_NOEXCEPT_AS_(++i) {
 		if constexpr (LegacyRandomAccessIterator<_I>) return j - i;
 		size_t n = 0;
 		while (i != j) ++n, ++i;

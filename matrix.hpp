@@ -6,13 +6,16 @@
 namespace Mathlab {
 	template <Arithmetic _T, size_t M, size_t N = M> class Matrix {
 		static_assert(M > 0 && N > 0 && NumericType<_T>);
-		Vector<_T, M> _data[N];
+		_T _data[N][M];
 		typedef struct { size_t a, b; } _index_t;
 	public:
 		typedef _T ValueType;
 		static constexpr size_t rows = M;
 		static constexpr size_t columns = N;
-		constexpr Matrix() noexcept : _data{0} {} //Zero Matrix
+		constexpr Matrix() noexcept : _data{ {0} } {} //Zero Matrix
+		constexpr Matrix(const _T& t) noexcept : _data{ {t} } {
+			for (size_t i = 1; i < M && i < N; ++i) _data[i][i] = t;
+		};
 		template <Arithmetic _S> constexpr Matrix(const InitializerList<_S>& il) noexcept {
 			size_t a = 0;
 			for (_S s : il) _data[a / N][a % N] = s, ++a;
@@ -23,10 +26,11 @@ namespace Mathlab {
 			for (_S s : il) _data[a / N][a % N] = s, ++a;
 			while (a < M * N) _data[a / N][a % N] = 0, ++a;
 		}
-		template <Arithmetic _S = _T> constexpr Matrix(const Matrix<_S, M, N>& other) noexcept {
+		template <Arithmetic _S> constexpr Matrix(const Matrix<_S, M, N>& other) noexcept {
 			for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j)
 				_data[i][j] = other[i][j];
 		}
+		constexpr Matrix(const Matrix& other) noexcept = default;
 		template <Arithmetic _S, size_t P, size_t Q>
 		explicit constexpr Matrix(const Matrix<_S, P, Q>& other) noexcept
 			requires (P <= M && Q <= N) {
@@ -46,11 +50,20 @@ namespace Mathlab {
 			_T t = 0;
 			return z >= M * N ? t : _data[z / N][z % N];
 		}
-		constexpr Vector<_T, M>& operator[](size_t z) noexcept {
+		constexpr const _T& at(size_t z) const noexcept {
+			return z >= M * N ? 0 : _data[z / N][z % N];
+		}
+		constexpr _T* operator[](size_t z) noexcept {
 			return _data[z];
 		}
-		constexpr const Vector<_T, M>& operator[](size_t z) const noexcept {
+		constexpr const _T* operator[](size_t z) const noexcept {
 			return _data[z];
+		}
+		constexpr _T* operator[](_index_t z) noexcept {
+			return _data[z.a][z.b];
+		}
+		constexpr const _T* operator[](_index_t z) const noexcept {
+			return _data[z.a][z.b];
 		}
 #ifdef __cpp_multidimensional_subscript
 		constexpr _T& operator[](size_t a, size_t b) noexcept {
@@ -89,51 +102,56 @@ namespace Mathlab {
 			return true;
 		}
 		constexpr Matrix<_T, M - 1, N - 1> subm(size_t x, size_t y) const noexcept {
-			Matrix<_T, M - 1, N - 1> m{0};
+			Matrix<_T, M - 1, N - 1> m{ 0 };
 			for (size_t i = 0; i < M - 1; ++i) for (size_t j = 0; j < N - 1; ++j)
 				m[i][j] = _data[i + (i >= x)][j + (j >= y)];
 			return m;
 		}
 		constexpr Matrix<_T, M - 1, N> rsubm(size_t x) const noexcept {
-			Matrix<_T, M - 1, N> m{0};
+			Matrix<_T, M - 1, N> m{ 0 };
 			for (size_t i = 0; i < M - 1; ++i) for (size_t j = 0; j < N; ++j)
 				m[i][j] = _data[i + (i >= x)][j];
 			return m;
 		}
 		constexpr Matrix<_T, M, N - 1> csubm(size_t y) const noexcept {
-			Matrix<_T, M, N - 1> m{0};
+			Matrix<_T, M, N - 1> m{ 0 };
 			for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N - 1; ++j)
 				m[i][j] = _data[i][j + (j >= y)];
 			return m;
 		}
 		constexpr Vector<_T, N> row(size_t x) const noexcept {
-			Vector<_T, N> m{0};
+			Vector<_T, N> m{ 0 };
 			for (size_t j = 0; j < N; ++j) m[j] = _data[x][j];
 			return m;
 		}
 		constexpr Vector<_T, M> column(size_t y) const noexcept {
-			Vector<_T, M> m{0};
+			Vector<_T, M> m{ 0 };
 			for (size_t i = 0; i < M; ++i) m[i] = _data[i][y];
 			return m;
 		}
 		constexpr Matrix& rswap(size_t dst, size_t src) noexcept {
-			if (dst != src) for (size_t j = 0; j < N; ++j) swap(_data[dst][j], _data[src][j]);
+			if (dst != src) for (size_t j = 0; j < N; ++j)
+				swap(_data[dst][j], _data[src][j]);
 			return *this;
 		}
 		constexpr Matrix& radd(size_t dst, size_t src, _T t = 0) noexcept {
-			if (t) for (size_t j = 0; j < N; ++j) _data[dst][j] += _data[src][j] * t;
+			if (t) for (size_t j = 0; j < N; ++j)
+				_data[dst][j] += _data[src][j] * t;
 			return *this;
 		}
 		constexpr Matrix& rmul(size_t dst, _T t = 1) noexcept {
-			if (t && t != 1) for (size_t j = 0; j < N; ++j) _data[dst][j] *= t;
+			if (t && t != 1) for (size_t j = 0; j < N; ++j)
+				_data[dst][j] *= t;
 			return *this;
 		}
 		constexpr Matrix& cswap(size_t dst, size_t src) noexcept {
-			for (size_t i = 0; i < M; ++i) swap(_data[i][dst], _data[i][src]);
+			if (dst != src)
+				for (size_t i = 0; i < M; ++i) swap(_data[i][dst], _data[i][src]);
 			return *this;
 		}
 		constexpr Matrix& cadd(size_t dst, size_t src, _T t = 0) noexcept {
-			if (t) for (size_t i = 0; i < M; ++i) _data[i][dst] += _data[i][src] * t;
+			if (t) for (size_t i = 0; i < M; ++i)
+				_data[i][dst] += _data[i][src] * t;
 			return *this;
 		}
 		constexpr Matrix& cmul(size_t dst, _T t = 1) noexcept {
@@ -145,7 +163,7 @@ namespace Mathlab {
 		}
 		template <Arithmetic _S> constexpr operator Vector<_S, M* N>()
 			noexcept requires (M == 1 || N == 1) {
-			Vector<_S, M* N> v = {_data[0][0]};
+			Vector<_S, M* N> v = { _data[0][0] };
 			for (size_t j = 1; j < M * N; ++j) v[j] = _data[0][j];
 		}
 	};
@@ -184,35 +202,41 @@ namespace Mathlab {
 	template <class _T, class _S, size_t M, size_t N, size_t P>
 	inline constexpr Matrix<Multiplies<_T, _S>, M, P>
 		operator*(const Matrix<_T, M, N>& lhs, const Matrix<_S, N, P>& rhs) noexcept {
-		Matrix<long double, M, P> m{0};
-		for (size_t i = 0; i < M; ++i) for (size_t k = 0; k < P; ++k) for (size_t j = 0; j < N; ++j)
-			m[{i, k}] += lhs[i][j] * rhs[{j, k}];
+		Matrix<long double, M, P> m{ 0 };
+		for (size_t i = 0; i < M; ++i)
+			for (size_t k = 0; k < P; ++k)
+				for (size_t j = 0; j < N; ++j)
+					m[{i, k}] += lhs[i][j] * rhs[{j, k}];
 		return m;
 	}
 	template <class _T, class _S, size_t M, size_t N>
 	inline constexpr Vector<Multiplies<_T, _S>, M>
 		operator*(const Matrix<_T, M, N>& lhs, const Vector<_S, N>& rhs) noexcept {
-		Vector<long double, M> m{0};
-		for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j) m[i] += lhs[i][j] * rhs[j];
+		Vector<long double, M> m{ 0 };
+		for (size_t i = 0; i < M; ++i)
+			for (size_t j = 0; j < N; ++j)
+				m[i] += lhs[i][j] * rhs[j];
 		return m;
 	}
 	template <class _T, class _S, size_t M, size_t N>
 	inline constexpr Vector<Multiplies<_T, _S>, N>
 		operator*(const Vector<_T, M> lhs, const Matrix<_S, M, N>& rhs) noexcept {
-		Vector<long double, N> m{0};
-		for (size_t i = 0; i < M; ++i) for (size_t j = 0; j < N; ++j) m[i] += lhs[i] * rhs[i][j];
+		Vector<long double, N> m{ 0 };
+		for (size_t i = 0; i < M; ++i)
+			for (size_t j = 0; j < N; ++j)
+				m[i] += lhs[i] * rhs[i][j];
 		return m;
 	}
 	//2 "Literal" Matrices
 	template <class _T, size_t N>
 	constexpr Matrix<_T, N, N> identityMatrix() {
-		Matrix<_T, N, N> m{0};
+		Matrix<_T, N, N> m{ 0 };
 		for (size_t i = 0; i < N; ++i) m[{i, i}] = 1;
 		return m;
 	}
 	template <class _T, size_t N>
 	constexpr Matrix<_T, N, N> exchangeMatrix() {
-		Matrix<_T, N, N> m{0};
+		Matrix<_T, N, N> m{ 0 };
 		for (size_t i = 0; i < N; ++i) m[{i, N - 1 - i}] = 1;
 		return m;
 	};
@@ -237,22 +261,27 @@ namespace Mathlab {
 	}
 	template <class _T, size_t N>
 	inline constexpr Matrix<_T, N, N> redhefferMatrix() noexcept {
-		Matrix<_T, N, N> m{1};
-		for (size_t i = 1; i < N; ++i) for (size_t j = 0; j <= i; ++j)
-			m[i][j] = !(j && (j + 1) % (i + 1));
+		Matrix<_T, N, N> m{ 1 };
+		for (size_t i = 1; i < N; ++i)
+			for (size_t j = 0; j <= i; ++j)
+				m[i][j] = !(j && (j + 1) % (i + 1));
 		return m;
 	}
 	//3 Matrix operations
 	template <class _T, size_t M, size_t N>
 	inline constexpr Matrix<_T, N, M> transpose(const Matrix<_T, M, N>& m) noexcept {
-		Matrix<_T, N, M> n{0};
-		for (size_t i = 1; i <= M; ++i) for (size_t j = 1; j <= N; ++j) n[{j, i}] = m[i][j];
+		Matrix<_T, N, M> n{ 0 };
+		for (size_t i = 1; i <= M; ++i)
+			for (size_t j = 1; j <= N; ++j)
+				n[{j, i}] = m[i][j];
 		return n;
 	}
 	template <class _T, size_t M, size_t N>
 	inline constexpr Matrix<_T, N, M> transjugate(const Matrix<_T, M, N>& m) noexcept {
-		Matrix<_T, N, M> n{0};
-		for (size_t i = 1; i <= M; ++i) for (size_t j = 1; j <= N; ++j) n[{j, i}] = conj(m[i][j]);
+		Matrix<_T, N, M> n{ 0 };
+		for (size_t i = 1; i <= M; ++i)
+			for (size_t j = 1; j <= N; ++j)
+				n[{j, i}] = conj(m[i][j]);
 		return n;
 	}
 	template <class _T, size_t N> constexpr _T det(const Matrix<_T, N, N>& m) noexcept {
@@ -287,7 +316,7 @@ namespace Mathlab {
 	}
 	template <class _T>
 	constexpr Matrix<_T, 1, 1> adj(const Matrix<_T, 1, 1>& m) noexcept {
-		return {1};
+		return { 1 };
 	}
 	template <class _T, size_t N>
 	constexpr Matrix<_T, N, N> inv(const Matrix<_T, N, N>& m) noexcept {
@@ -314,10 +343,12 @@ namespace Mathlab {
 		}
 		return t;
 	}
-	template <class _T, size_t N> constexpr Matrix<_T, N, N> pow(const Matrix<_T, N, N>& m, int n) {
+	template <class _T, size_t N> inline constexpr Matrix<_T, N, N>
+	pow(const Matrix<_T, N, N>& m, int n) {
 		return n < 0 ? pow(inv(m), -n) : n ? m * pow(m, n - 1) : identityMatrix<_T, N>();
 	}
-	template <class _T, size_t N> constexpr Matrix<_T, N, N> exp(const Matrix<_T, N, N>& m) {
+	template <class _T, size_t N> inline constexpr Matrix<_T, N, N>
+	exp(const Matrix<_T, N, N>& m) {
 		Matrix<_T, N, N> result = identityMatrix<_T, N>() + m, n = m;
 		_T t = 1;
 		while (m + t * n != m) result += n *= m / (t += 1);
@@ -325,7 +356,7 @@ namespace Mathlab {
 	}
 	template <class _T, class _S, size_t M, size_t N, size_t P, size_t Q>
 	inline constexpr auto operator->*(const Matrix<_T, M, N>& m, const Matrix<_T, P, Q>& n) {
-		Matrix<decltype(_T()* _S()), M* P, N* Q> result{0};
+		Matrix<decltype(_T()* _S()), M* P, N* Q> result{ 0 };
 		_T t = 1;
 		while (m + t * n != m) result += n *= m / (t += 1);
 		return result;
@@ -425,31 +456,87 @@ namespace Mathlab {
 	template <class _T, size_t N> using RowMatrix = Matrix<_T, 1, N>;
 	template <class _T, size_t M> using ColumnVector = Matrix<_T, M, 1>;
 	template <class _T, size_t N> using RowVector = Matrix<_T, 1, N>;
-	template <class _T, size_t M> ColumnMatrix<_T, M> column(const Vector<_T, M>& v) {
+	template <class _T, size_t M> inline constexpr ColumnMatrix<_T, M>
+	column(const Vector<_T, M>& v) {
 		size_t i = 0;
-		ColumnMatrix<_T, M> m{0};
+		ColumnMatrix<_T, M> m{ 0 };
 		for (_T& t : m) t = v[i++];
 	}
-	template <class _T, size_t N> RowMatrix<_T, N> row(const Vector<_T, N>& v) {
+	template <class _T, size_t N> inline constexpr RowMatrix<_T, N>
+	row(const Vector<_T, N>& v) {
 		size_t i = 0;
-		RowMatrix<_T, N> m{0};
+		RowMatrix<_T, N> m{ 0 };
 		for (_T& t : m) t = v[i++];
 	}
 	//6 Linear Transformation
-	template <class _T, size_t N> Matrix<_T, N + 1> transform(const Vector<_T, N>& v) {
-		Matrix<_T, N + 1> res = identityMatrix<_T, N + 1>();
-		res[N] = v;
+	template <class _T, size_t N> inline constexpr Matrix<_T, N + 1>
+	transform(const Vector<_T, N>& v) {
+		Matrix<_T, N> res = identityMatrix<_T, N + 1>();
+		res[N] = Vector<_T, N + 1>(v, 1);
 	}
-	template <class _T> Matrix<_T, 4> rotateQuaternion(const Vector<_T, 4>& v) {
-		return 0; //{v[0] + v[1] - v[2] - v[3], 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+	template <class _T> inline constexpr Matrix<Promoted<_T>, 2>
+	rotate2D(const _T& theta) {
+		Promoted<_T> c = cos(theta), s = sin(theta);
+		return { c, -s, s, c };
 	}
-	template <class _T> Matrix<_T, 4> rotate(const Vector<_T, 3>& v, const _T& theta) {
+	//Rotate by X axis
+	template <class _T> inline constexpr Matrix<Promoted<_T>, 3>
+	roll(const _T& theta) {
+		Promoted<_T> c = cos(theta), s = sin(theta);
+		return { 1, 0, 0, 0, c, -s, 0, s, c };
+	}
+	//Rotate by Y axis
+	template <class _T> inline constexpr Matrix<Promoted<_T>, 3>
+	pitch(const _T& theta) {
+		Promoted<_T> c = cos(theta), s = sin(theta);
+		return { c, 0, s, 0, 1, 0, -s, 0, c };
+	}
+	//Rotate by Z axis
+	template <class _T> inline constexpr Matrix<Promoted<_T>, 3>
+	yaw(const _T& theta) {
+		Promoted<_T> c = cos(theta), s = sin(theta);
+		return { c, -s, 0, s, c, 0, 0, 0, 1 };
+	}
+	template <class _T> inline constexpr Matrix<_T, 3>
+	rotateQuaternion(const Vector<_T, 4>& v) {
+		_T w = v[0] * v[0], x = v[1] * v[1], y = v[2] * v[2], z = v[3] * v[3],
+			s = 2.0 / (w + x + y + z),
+			a = v[0] * v[1] * s, b = v[0] * v[2] * s, c = v[0] * v[3] * s,
+			d = v[2] * v[3] * s, e = v[1] * v[3] * s, f = v[1] * v[2] * s;
+		return {
+			1 - s * (y + z), f - c, e + b,
+			f + c, 1 - s * (z + x), d - a,
+			e - b, d + a, 1 - s * (x + y)
+		};
+	}
+	template <class _T> inline constexpr Matrix<_T, 3>
+	rotate3D(const Vector<_T, 3>& v, const _T& theta) {
 		auto vs = 1 - cos(theta), s = sin(theta);
 		// (v.k)xk, kx(vxk)
-		return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+		return { 1, 0, 0, 0 };
 	}
-	template <class _T> Matrix<_T, 4> scale(const Vector<_T, 3>& v) {
-		return {v[0], 0, 0, 0, 0, v[1], 0, 0, 0, 0, v[2], 0, 0, 0, 0, 1};
+	template <class _T, size_t N> inline constexpr Matrix<_T, N>
+	scale(const Vector<_T, N>& v) {
+		Matrix<_T, N + 1> res = { v[0] };
+		for (size_t i = 1; i < N; ++i) res[i][i] = v[i];
+		return res;
+	}
+	//7 Affine transformation
+	template <class _T, size_t N> inline constexpr Matrix<_T, N + 1>
+	affine(const Matrix<_T, N>& linear, const Vector<_T, N>& transform = { 0 }) {
+		Matrix<_T, N + 1> res(1);
+		for (size_t i = 0; i < N; ++i) {
+			for (size_t j = 0; j < N; ++j) res[i][j] = linear[i][j];
+			res[i][N] = transform[i];
+		}
+		return res;
+	}
+	template <class _T, size_t N> inline constexpr Matrix<_T, N + 1>
+	transform(const Vector<_T, N>& v) {
+		//Equivalent to affine(I, v)
+		Matrix<_T, N + 1> res(1);
+		for (size_t i = 0; i < N; ++i) res[i][N] = v[i];
+		return res;
 	}
 }
 #endif

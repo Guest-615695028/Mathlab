@@ -19,22 +19,21 @@
 #define M_SQRT2 1.41421356237309504880	  // sqrt(2)
 #define M_SQRT1_2 0.707106781186547524401 // 1/sqrt(2)
 
+#define __BINARY_REAL_ARITHMETIC template<RealArithmetic _T=int, RealArithmetic _U=int>\
+	constexpr Promoted<_T, _U>
+#define __UNARY_REAL_ARITHMETIC template<RealArithmetic _T=int>\
+	constexpr Promoted<_T>
 namespace Mathlab {
 	// 1 Numerics
 	// 1.1 Floating-point Modulo
-	template <Arithmetic _T, Arithmetic _U>
-	constexpr Promoted<_T, _U> fmod(_T x, _U y) noexcept {
-		if (y <= 0)
-			return y ? fmod(x, -y) : nan(errno = EDOM);
-		else if (x <= 0)
-			return x ? fmod(-x, y) : 0;
-		else if (!isfinite(x) || isnan(y))
-			return nan(errno = EDOM);
-		auto a = x >= 2 * y ? fmod(x, 2.0L * y) : x;
+	__BINARY_REAL_ARITHMETIC fmod(_T x, _U y) noexcept {
+		if (y == 0 || !isfinite(x) || isnan(y)) return nan(errno = EDOM);
+		if (y < 0) y = -y;
+		if (isinf(y)) return x;
+		Promoted<_T, _U> a = abs(x) >= 2 * y ? fmod(x, 2 * y) : x;
 		return a >= y ? a - y : a <= -y ? a + y : a;
 	}
-	template <Arithmetic _T, Arithmetic _U>
-	constexpr Promoted<_T, _U> remainder(_T x, _U y) noexcept {
+	__BINARY_REAL_ARITHMETIC remainder(_T x, _U y) noexcept {
 		if (y <= 0)
 			return y ? remainder(x, -y) : nan(errno = EDOM);
 		else if (!isfinite(x))
@@ -45,70 +44,55 @@ namespace Mathlab {
 		return a > y * 0.5L ? a - y : a < -y * 0.5L ? a + y : a;
 	}
 	// 1.2 Integer rounding functions
-	template <Arithmetic _T, Arithmetic _U = _T>
-	inline constexpr auto trunc(_T x) noexcept {
-		if constexpr (Integral<_T>)
-			return x;
-		else
-			return x - fmod(x, 1);
+	template <Arithmetic _T> inline constexpr _T trunc(_T x) noexcept {
+		if constexpr (Integral<_T>) return x;
+		else return x - fmod(x, 1);
 	}
-	template <Arithmetic _T, Arithmetic _U = _T>
-	inline constexpr auto round(_T x) noexcept {
-		if constexpr (Integral<_T>)
-			return x;
-		else
-			return x - remainder(x, 1);
+	template <Arithmetic _T> inline constexpr _T round(_T x) noexcept {
+		if constexpr (Integral<_T>) return x;
+		else return x - remainder(x, 1);
 	}
-	template <Arithmetic _T, Arithmetic _U = _T>
-	inline constexpr auto ceil(_T x) noexcept {
-		if constexpr (Integral<_T>)
-			return x;
-		else
-			return trunc(x) + (x > 0 && fmod(x, 1));
+	template <Arithmetic _T> inline constexpr _T ceil(_T x) noexcept {
+		if constexpr (Integral<_T>) return x;
+		else return trunc(x) + (x > 0 && fmod(x, 1));
 	}
-	template <Arithmetic _T, Arithmetic _U = _T>
-	inline constexpr auto floor(_T x) noexcept {
-		if constexpr (Integral<_T>)
-			return x;
-		else
-			return trunc(x) - (x < 0 && fmod(x, 1));
+	template <Arithmetic _T> inline constexpr _T floor(_T x) noexcept {
+		if constexpr (Integral<_T>) return x;
+		else return trunc(x) - (x < 0 && fmod(x, 1));
 	}
 	// 1.3 Bit manipulation
 	inline constexpr bool isPowOf2(uintmax_t i) { return i && !(i & i - 1); }
+	template <Integral _I = uintmax_t> inline constexpr _I bitWidth(_I i) {
+		if (i == 0) return 0;
+		if (i < 0) return i == -1 ? 1 : bitWidth(~i);
+		size_t j = 1;
+		while (i >> j) j++;
+		return j + (_I(-1) < 0);
+	}
 	template <Integral _I = uintmax_t> inline constexpr _I bitFloor(_I i) {
-		if (i < 0)
-			return limits(i).min();
-		for (uintmax_t j = i; j >>= 1; i &= ~j)
-			;
-		return i;
+		Unsigned<_I> j = i, r = 0;
+		for (size_t n = sizeof(_I) << 3; n >>= 1; ) {
+			if (j >> n) r |= n, j >>= n;
+		}
+		return 1 << r;
 	}
 	template <Integral _I = uintmax_t> inline constexpr _I bitCiel(_I i) {
-		return i <= 0 ? 0 : i == 1 ? 1 : bitFloor(i - 1) << 1;
-	}
-	template <Integral _I = uintmax_t> inline constexpr _I bitWidth(_I i) {
-		if (i < 0)
-			return i + 1 ? bitWidth(~i) : 1;
-		else if (i == 0)
-			return 0;
-		_I j = sizeof(i) * 8, k = _I(-1) < 0 ? 2 : 1;
-		while (j >>= 1)
-			if (i >> j)
-				i >>= j, k += j;
-		return k;
+		if (i <= 0) return 0;
+		else if (i <= 4) return i == 3 ? 4 : i;
+		else return bitFloor(i - 1) << 1;
 	}
 	template <Integral _I = uintmax_t> inline constexpr _I rotate(_I i, int r) {
-		constexpr size_t N = 8 * sizeof(_I);
-		if ((r %= N) < 0)
-			r += N;
-		return r ? i << r | _I((Unsigned<_I>)i >> N - r) : i;
+		constexpr size_t N = sizeof(_I) << 3;
+		if ((r %= N) < 0) r += N;
+		return r ? _I(i << r | (Unsigned<_I>)i >> N - r) : i;
 	}
 	// 2 Elementary functions
 	// 2.1 Exponential functions
 	template <Arithmetic _T> constexpr Promoted<_T> exp(_T x) noexcept {
 		if (x > 1 || x < -1) {
-			if (x >= LDBL_MAX_EXP)
+			if (x >= limits(x).max_exponent)
 				return infinity();
-			else if (x <= LDBL_MIN_EXP)
+			else if (x <= limits(x).min_exponent)
 				return 0;
 			Promoted<_T> t = exp(x / 2.0L);
 			return t * t;
@@ -339,7 +323,7 @@ namespace Mathlab {
 			: a + t * (b - a);
 	}
 	template <class _T, Arithmetic _V>
-	inline constexpr _T* lerp(_T* a, _T* b, _V t) noexcept {
+	inline constexpr _T * lerp(_T * a, _T * b, _V t) noexcept {
 		return a + ptrdiff_t((b - a) * t);
 	}
 	// 2.6.1 Midpoint
@@ -347,7 +331,7 @@ namespace Mathlab {
 	inline constexpr Plus<_T, _U> midpoint(_T a, _U b) noexcept {
 		return isinf(a + b) ? (a + b) * 0.5l : a * 0.5l + b * 0.5l;
 	}
-	template <class _T> inline constexpr _T* midpoint(_T* a, _T* b) noexcept {
+	template <class _T> inline constexpr _T * midpoint(_T * a, _T * b) noexcept {
 		return a + (b - a) / 2;
 	}
 	// 2.7 Fibonacci sequence: 0, 1, 1, 2, 3, 5, 8, 13, 21...
@@ -380,18 +364,40 @@ namespace Mathlab {
 	}
 	template <Integral _T, Integral _U>
 	constexpr CommonType<_T, _U> nCr(_T n, _U r) noexcept {
-		if (n < 0 || r < 0 || n < r)
+		if (r < 0 || n < r)
 			return 0;
 		else if (r == 0 || r == n)
 			return 1;
 		else if (r > n / 2)
 			r = n - r;
-		uintmax_t* temp = new uintmax_t[r + 1]{1}, res = 0;
+		uintmax_t * temp = new uintmax_t[r + 1]{ 1 }, res = 0;
 		for (_T t = 1; t <= n; ++t)
 			for (_U u = t < r ? t : r; u; --u)
 				temp[u] += temp[u - 1];
 		res = temp[r];
-		return delete[] temp, res;
+		delete[] temp;
+		return res;
+	}
+	// 3.2 Jacobi symbol
+	template <Integral _T, Integral _U> constexpr int jacobi(_T t, _U u) noexcept {
+		if (u < 0) return -2;
+		else if (u % 2 == 0) return 2; //u is positive odd integer vvv
+		else if (u == 1 || (t %= u) == 1) return 1;
+		else if (t == 0) return 0;
+		else if (t < 0) t += u; //-u<t<u
+		int r = 1;
+		while (1) {
+			while (t % 4 == 0) t /= 4;
+			if (t % 4 == 2) {
+				t /= 2;
+				if (u % 8 == 3 || u % 8 == 5) r = -r;
+			}
+			//both t and u are odd
+			if (t == 1 || u == 1) return r;
+			if (t % 4 + u % 4 == 6) r = -r;
+			if (auto v = u % t) u = t, t = v;
+			else return 0;
+		}
 	}
 	// 4 Complex functions vvv
 	template <Arithmetic _T>
@@ -408,7 +414,7 @@ namespace Mathlab {
 	}
 	template <Arithmetic _T>
 	inline constexpr Complex<_T> log(Complex<_T> z) noexcept {
-		return {log(abs(z)), arg(z)};
+		return { log(abs(z)), arg(z) };
 	}
 	template <Arithmetic _T>
 	inline constexpr Complex<_T> log2(Complex<_T> z) noexcept {
@@ -435,27 +441,27 @@ namespace Mathlab {
 		return cbrt(z.real) * Complex<_T>{cos(z.imag / 3), sin(z.imag / 3)};
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> sin(const Complex<_T>& z) noexcept {
-		return {sin(z.real) * cosh(z.imag), cos(z.real) * sinh(z.imag)};
+	inline constexpr Complex<_T> sin(const Complex<_T> & z) noexcept {
+		return { sin(z.real) * cosh(z.imag), cos(z.real) * sinh(z.imag) };
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> cos(const Complex<_T>& z) noexcept {
-		return {cos(z.real) * cosh(z.imag), -sin(z.real) * sinh(z.imag)};
+	inline constexpr Complex<_T> cos(const Complex<_T> & z) noexcept {
+		return { cos(z.real) * cosh(z.imag), -sin(z.real) * sinh(z.imag) };
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> tan(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> tan(const Complex<_T> & z) noexcept {
 		return sin(z) / cos(z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> cot(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> cot(const Complex<_T> & z) noexcept {
 		return cos(z) / sin(z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> sec(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> sec(const Complex<_T> & z) noexcept {
 		return 1 / cos(z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> csc(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> csc(const Complex<_T> & z) noexcept {
 		return 1 / sin(z);
 	}
 	template <Arithmetic _T>
@@ -483,27 +489,27 @@ namespace Mathlab {
 		return asin(1.0L / z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> sinh(const Complex<_T>& z) noexcept {
-		return {sinh(z.real) * cos(z.imag), cosh(z.real) * sin(z.imag)};
+	inline constexpr Complex<_T> sinh(const Complex<_T> & z) noexcept {
+		return { sinh(z.real) * cos(z.imag), cosh(z.real) * sin(z.imag) };
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> cosh(const Complex<_T>& z) noexcept {
-		return {cosh(z.real) * cos(z.imag), sinh(z.real) * sin(z.imag)};
+	inline constexpr Complex<_T> cosh(const Complex<_T> & z) noexcept {
+		return { cosh(z.real) * cos(z.imag), sinh(z.real) * sin(z.imag) };
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> tanh(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> tanh(const Complex<_T> & z) noexcept {
 		return sinh(z) / cosh(z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> coth(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> coth(const Complex<_T> & z) noexcept {
 		return cosh(z) / sinh(z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> sech(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> sech(const Complex<_T> & z) noexcept {
 		return 1 / cosh(z);
 	}
 	template <FloatingPoint _T>
-	inline constexpr Complex<_T> csch(const Complex<_T>& z) noexcept {
+	inline constexpr Complex<_T> csch(const Complex<_T> & z) noexcept {
 		return 1 / sinh(z);
 	}
 	template <Arithmetic _T>
@@ -606,7 +612,7 @@ namespace Mathlab {
 			while (Promoted<_T> y = ((p *= -1) * pow(n += 1, -x))) result += y;
 			return result / (exp2(1 - x) - 1);
 		} else
-				return 2 * pow(2 * M_PI, x - 1) * sin(M_PI_2 * x) * tgamma(1 - x) *
+			return 2 * pow(2 * M_PI, x - 1) * sin(M_PI_2 * x) * tgamma(1 - x) *
 			riemannZeta(1 - x);
 	}
 	// 8 Bessel functions

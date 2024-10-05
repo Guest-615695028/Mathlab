@@ -11,21 +11,22 @@ namespace Mathlab {
 		typedef _T ValueType;
 		static constexpr size_t columns = N;
 		constexpr Vector() noexcept = default;
-		explicit constexpr Vector(const _T& t) noexcept : _data{t} {
+		explicit constexpr Vector(const _T& t) noexcept : _data{ t } {
 			for (_T& u : _data) u = t;
 		}; //Zero Vector
 		template <ConvertibleTo<_T> ..._S> constexpr Vector(const _S& ...s) noexcept
-			: _data{_T(s)...} {}
-		template <Arithmetic _S> constexpr Vector(const _S(&il)[N]) noexcept : _data{0} {
+			: _data{ _T(s)... } {}
+		template <Arithmetic _S> constexpr Vector(const _S(&il)[N]) noexcept : _data{ 0 } {
 			size_t a = 0;
 			for (_S s : il) _data[a++] = s;
 		}
-		template <Arithmetic _S> constexpr Vector(const Vector<_S, N>& other) noexcept : _data{0} {
+		template <Arithmetic _S> constexpr Vector(const Vector<_S, N>& other) noexcept : _data{ 0 } {
 			for (size_t i = 0; i < N; ++i) _data[i] = other[i];
 		}
 		template <Arithmetic _S, size_t M, ConvertibleTo<_T>... _U>
-		constexpr Vector(const Vector<_S, M>& other, const _U&... u) noexcept : _data{0} {
-			_T t[N - M] = {u...};
+		explicit constexpr Vector(const Vector<_S, M>& other, const _U&... u) noexcept : _data{ 0 } {
+			static_assert(N > M && N >= M + sizeof...(_U));
+			_T t[N - M] = { u... };
 			for (size_t i = 0; i < N; ++i) _data[i] = i < M ? other[i] : t[i - M];
 		}
 		constexpr _T* begin() noexcept { return _data; }
@@ -69,25 +70,25 @@ namespace Mathlab {
 	//1 Operators
 	template <class _T, class _S, size_t N> inline constexpr auto operator+(const Vector<_T, N>& lhs, const Vector<_S, N>& rhs) noexcept {
 		auto a = lhs[0] + rhs[0];
-		Vector<decltype(a), N> v = {a};
+		Vector<decltype(a), N> v = { a };
 		for (size_t i = 1; i < N; ++i) v[i] = lhs[i] + rhs[i];
 		return v;
 	}
 	template <class _T, class _S, size_t N> inline constexpr auto operator-(const Vector<_T, N>& lhs, const Vector<_S, N>& rhs) noexcept {
 		auto a = lhs[0] - rhs[0];
-		Vector<decltype(a), N> v = {a};
+		Vector<decltype(a), N> v = { a };
 		for (size_t i = 1; i < N; ++i) v[i] = lhs[i] - rhs[i];
 		return v;
 	}
 	template <class _T, class _S, size_t N> inline constexpr auto operator*(const Vector<_T, N>& lhs, const _S& rhs) noexcept {
 		auto a = lhs[0] * rhs;
-		Vector<decltype(a), N> v = {a};
+		Vector<decltype(a), N> v = { a };
 		for (size_t i = 1; i < N; ++i) v[i] = lhs[i] * rhs;
 		return v;
 	}
 	template <class _T, class _S, size_t N> inline constexpr auto operator/(const Vector<_T, N>& lhs, const _S& rhs) noexcept {
 		auto a = lhs[0] / rhs;
-		Vector<decltype(a), N> v = {a};
+		Vector<decltype(a), N> v = { a };
 		for (size_t i = 1; i < N; ++i) v[i] = lhs[i] / rhs;
 		return v;
 	}

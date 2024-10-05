@@ -1,5 +1,5 @@
 #pragma once
-#include "linearlist.hpp"
+#include "slice.hpp"
 namespace Mathlab {
 	template <class _T> class BinaryTree {
 		struct _N {
